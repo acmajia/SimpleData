@@ -42,7 +42,7 @@ namespace SimpleData.Core
                         headerSb.Append(EscapeCsvField(field));
                     }
 
-                    sw.WriteLine(headerSb.ToString());
+                    sw.WriteLine(headerSb);
 
                     var lineSb = new StringBuilder();
                     foreach (var row in dataSet.Data)
