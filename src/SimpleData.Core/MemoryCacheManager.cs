@@ -3,7 +3,7 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Text;
 
-namespace SimpleData.Data.Core
+namespace SimpleData.Core
 {
     public class MemoryCache
     {

@@ -5,57 +5,145 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 
-namespace SimpleData.Data.Core
+namespace SimpleData.Core
 {
     public class CsvDataReader : IDataReader
     {
-        public CsvDataReader(IDictionary<string, string> fileInfo, Encoding encoding = null)
+        public CsvDataReader(FileBatchReadOptions options)
         {
-            FileInfo = fileInfo;
-            if (encoding != null) Encoding = encoding;
-            else Encoding = Encoding.Default;
+            FileBatchReadOptions = options;
         }
 
-        public IDictionary<string, string> FileInfo { get; private set; }
-        public Encoding Encoding { get; private set; }
+        public FileBatchReadOptions FileBatchReadOptions { get; }
 
         public IEnumerable<DataSet> Get()
         {
             var list = new List<DataSet>();
-            foreach (var item in FileInfo)
+            foreach (var item in FileBatchReadOptions.Items)
             {
-                list.Add(GetFromFile(item.Key, item.Value));
+                list.Add(GetFromFile(item));
             }
             return list;
         }
 
-        private DataSet GetFromFile(string dataSetName, string filePath)
+        private DataSet GetFromFile(FileReadOptions options)
         {
-            StreamReader sr = new StreamReader(filePath, Encoding);
-            string strLine = "";
-
-            var data = new List<IDictionary<string, object>>();
-            try
+            using (var sr = new StreamReader(options.FilePath, options.Encoding))
             {
-                var fields = sr.ReadLine().Split(new char[] { ',' });
-                while ((strLine = sr.ReadLine()) != null)
+                var strLine = string.Empty;
+
+                var data = new List<IDictionary<string, object>>();
+                try
                 {
-                    var dic = new Dictionary<string, object>();
-                    var values = strLine.Split(new char[] { ',' });
-                    for (var i = 0; i < fields.Length; i++)
+                    var fields = SplitCsvLine(sr.ReadLine());
+                    while ((strLine = sr.ReadLine()) != null)
                     {
-                        if (string.IsNullOrEmpty(fields[i])) continue;
-                        dic.Add(fields[i], values[i]);
+                        var dict = new Dictionary<string, object>();
+                        var values = SplitCsvLine(strLine);
+
+                        var valIndex = 0;
+
+                        for (var i = 0; i < fields.Length; i++)
+                        {
+                            if (string.IsNullOrEmpty(fields[i]))
+                            {
+                                continue;
+                            }
+
+                            var val = values[valIndex];
+
+                            valIndex++;
+
+                            dict.Add(fields[i], val);
+                        }
+                        data.Add(dict);
                     }
-                    data.Add(dic);
+                }
+                catch (Exception ex)
+                {
+                    throw new Exception("Read from file Error: " + ex.Message);
+                }
+
+                sr.Close();
+
+                return new DataSet { Data = data, Name = options.DataSetName };
+            }
+        }
+
+        private string[] SplitCsvLine(string line)
+        {
+            var list = new List<string>();
+
+            var tempStr = line;
+            var index = 0;
+
+            while (true)
+            {
+                var (offset, fieldValue) = FindNextFieldValue(tempStr);
+                list.Add(fieldValue);
+
+                index += offset;
+
+                if (offset == tempStr.Length)
+                {
+                    break;
+                }
+
+                tempStr = tempStr.Substring(offset + 1);
+            }
+
+            return list.ToArray();
+        }
+
+        private (int, string) FindNextFieldValue(string tempStr)
+        {
+            if (tempStr.StartsWith("\""))
+            {
+                var lastIsSoloQuationMark = false;
+
+                var currentFieldEndPosition = -1;
+
+                for (var indexOfTempStr = 1; indexOfTempStr < tempStr.Length; indexOfTempStr++)
+                {
+                    var currentChar = tempStr[indexOfTempStr];
+                    if (currentChar == '"')
+                    {
+                        lastIsSoloQuationMark = !lastIsSoloQuationMark;
+                    }
+                    else if (currentChar == ',')
+                    {
+                        if (lastIsSoloQuationMark)
+                        {
+                            currentFieldEndPosition = indexOfTempStr - 1;
+                            break;
+                        }
+                    }
+                }
+
+                if (currentFieldEndPosition == -1)
+                {
+                    return (tempStr.Length, EscapeCsvString(tempStr.Substring(1, tempStr.Length - 2)));
+                }
+
+                return (currentFieldEndPosition + 1, EscapeCsvString(tempStr.Substring(1, currentFieldEndPosition - 1)));
+            }
+            else
+            {
+                var indexOfFirstComma = tempStr.IndexOf(',');
+                if (indexOfFirstComma == -1)
+                {
+                    return (tempStr.Length, EscapeCsvString(tempStr));
+                }
+                else
+                {
+                    return (indexOfFirstComma, EscapeCsvString(tempStr.Substring(0, indexOfFirstComma)));
                 }
             }
-            catch (Exception ex)
-            {
-                throw new Exception("读取出错！" + ex.Message);
-            }
-            sr.Close();
-            return new DataSet() { Data = data, Name = dataSetName };
+        }
+
+        private string EscapeCsvString(string str)
+        {
+            return str.Replace("\"\"", "\"");
         }
     }
 }

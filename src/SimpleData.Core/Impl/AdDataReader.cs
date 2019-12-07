@@ -3,7 +3,7 @@ using System.Collections.Generic;
 using System.DirectoryServices;
 using System.Security.Principal;
 
-namespace SimpleData.Data.Core
+namespace SimpleData.Core
 {
     public class AdDataReader : IDataReader
     {

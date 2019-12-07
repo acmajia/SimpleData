@@ -4,7 +4,7 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 
-namespace SimpleData.Data.Core
+namespace SimpleData.Core
 {
     public static class Constants
     {

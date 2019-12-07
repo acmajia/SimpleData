@@ -7,7 +7,7 @@ using System.Text;
 using System.Text.RegularExpressions;
 using System.Threading.Tasks;
 
-namespace SimpleData.Data.Core
+namespace SimpleData.Core
 {
     public class JsonDataReader : IDataReader
     {

@@ -5,7 +5,7 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 
-namespace SimpleData.Data.Core
+namespace SimpleData.Core
 {
     public class CsvDataWriter : IDataWriter
     {
@@ -25,38 +25,65 @@ namespace SimpleData.Data.Core
         {
             foreach (var dataSet in dataSets)
             {
-                var sw = new StreamWriter($"{BasePath}{dataSet.Name}.csv", true, Encoding);
-
-                var dataStr = "";
-                var i = 0;
-                foreach (var item in dataSet.Data)
+                if (!dataSet.Data.Any())
                 {
-                    if (i == 0)
-                    {
-                        var j = 0;
-                        foreach (var piece in item.Keys)
-                        {
-                            dataStr += piece;
-                            if (j < item.Keys.Count - 1)
-                                dataStr += ",";
-                            j++;
-                        }
-                    }
-                    dataStr += "\r\n";
-                    var k = 0;
-                    foreach (var piece in item)
-                    {
-                        dataStr += piece.Value;
-                        if (k < item.Keys.Count - 1)
-                            dataStr += ",";
-                        k++;
-                    }
-                    i++;
+                    continue;
                 }
 
-                sw.Write(dataStr);
-                sw.Close();
+                using (var sw = new StreamWriter($"{BasePath}{dataSet.Name}.csv", true, Encoding))
+                {
+                    var headerSb = new StringBuilder();
+                    foreach (var field in dataSet.Data.First().Keys)
+                    {
+                        if (headerSb.Length > 0)
+                        {
+                            headerSb.Append(",");
+                        }
+                        headerSb.Append(EscapeCsvField(field));
+                    }
+
+                    sw.WriteLine(headerSb.ToString());
+
+                    var lineSb = new StringBuilder();
+                    foreach (var row in dataSet.Data)
+                    {
+                        lineSb.Clear();
+
+                        foreach (var field in row.Values)
+                        {
+                            if (lineSb.Length > 0)
+                            {
+                                lineSb.Append(",");
+                            }
+                            lineSb.Append(EscapeCsvField(field?.ToString()));
+                        }
+
+                        sw.WriteLine(lineSb);
+                    }
+
+                    sw.Close();
+                }
             }
+        }
+
+        private string EscapeCsvField(string field)
+        {
+            if (string.IsNullOrWhiteSpace(field))
+            {
+                return field;
+            }
+
+            if (field.Contains("\""))
+            {
+                field.Replace("\"", "\"\"");
+            }
+
+            if (field.Contains(","))
+            {
+                field = $"\"{field}\"";
+            }
+
+            return field;
         }
     }
 }
